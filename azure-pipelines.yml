@@ -1,0 +1,36 @@
+# Maven
+# Build your Java project and run tests with Apache Maven.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+
+trigger:
+- master
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'pom.xml'
+    mavenOptions: '-Xmx3072m'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '1.8'
+    jdkArchitectureOption: 'x64'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    goals: 'package'
+- script: |
+    curl -O -L https://downloads.veracode.com/securityscan/pipeline-scan-LATEST.zip
+  displayName: 'Download Pipeline Scanner'
+- task: ExtractFiles@1
+  inputs:
+    archiveFilePatterns: 'pipeline-scan-LATEST.zip'
+    destinationFolder: 'pipeline'
+    cleanDestinationFolder: false
+- script: |
+      java -jar pipeline\pipeline-scan.jar --veracode_api_id "$(VERACODE_API_ID)" --veracode_api_key "$(VERACODE_API_KEY)" --file "example.jar" --fail_on_severity="Very High, High" --fail_on_cwe="80"
+  env:
+    VERACODE_API_ID: $(36b4bd6cf2736c963be2cb66f4479dc3)
+    VERACODE_API_KEY: $(6fc0608c4fc610ff2cb8557fb5c47240e1787544f87b684f369145c3ba05ae79f68428bad1fb9bc59ff70be457ee6b80f96adede7c82515f5612b653a47b254d)
+  displayName: 'Run Pipeline Scan'
